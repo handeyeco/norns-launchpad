@@ -7,7 +7,23 @@ launchpad = nil
 Launchpad = {}
 Launchpad.__index = Launchpad
 
-function Launchpad:create(midi_out_index)
+function handle_midi_event(data)
+  local message = midi.to_msg(data)
+
+  if message.type == "note_on" then
+    launchpad:note_pad_on(message.note)
+  elseif message.type == "note_off" then
+    launchpad:note_pad_off(message.note)
+  elseif message.type == "cc" then
+    if message.val == 127 then
+      launchpad:note_pad_on(message.cc)
+    elseif message.val == 0 then
+      launchpad:note_pad_off(message.cc)
+    end
+  end
+end
+
+function Launchpad:create(midi_index, midi_callback)
   local _lp = {}
   setmetatable(_lp, Launchpad)
 
@@ -25,7 +41,8 @@ function Launchpad:create(midi_out_index)
 }
 
   -- init
-  _lp.midi_connection = midi.connect(midi_out_index)
+  _lp.midi_connection = midi.connect(midi_index)
+  _lp.midi_connection.event = midi_callback
   _lp:programmer_mode()
 
   return _lp
@@ -35,24 +52,32 @@ function Launchpad:programmer_mode()
   self.midi_connection:send{240, 0, 32, 41, 2, 13, 14, 1, 247}
 end
 
--- color is the number associated with the color in the manual
--- behavior is static (1), flashing (2), and pulsing (2)
-function Launchpad:pad_on(x, y, _color, _behavior)
-  local note = self.grid_notes[y+1][x+1]
+function Launchpad:note_pad_on(note, _color, _behavior)
   local color = _color or 3
   local behavior = _behavior or 1
   self.midi_connection:note_on(note, color, behavior)
 end
 
-function Launchpad:pad_off(x, y)
-  local note = self.grid_notes[y+1][x+1]
+function Launchpad:note_pad_off(note)
   self.midi_connection:note_off(note, 0, 1)
+end
+
+-- color is the number associated with the color in the manual
+-- behavior is static (1), flashing (2), and pulsing (2)
+function Launchpad:coord_pad_on(x, y, _color, _behavior)
+  local note = self.grid_notes[y+1][x+1]
+  self:note_pad_on(note, _color, _behavior)
+end
+
+function Launchpad:coord_pad_off(x, y)
+  local note = self.grid_notes[y+1][x+1]
+  self:note_pad_off(note)
 end
 
 function Launchpad:all_pads_off()
   for i = 0, 8, 1 do
     for j = 0, 8, 1 do
-      self:pad_off(i, j)
+      self:coord_pad_off(i, j)
     end
   end
 end
@@ -62,7 +87,7 @@ function Launchpad:disco()
     for j = 0, 8, 1 do
       local color = math.random(0, 127)
       local behavior = math.random(3)
-      launchpad:pad_on(i, j, color, behavior)
+      launchpad:coord_pad_on(i, j, color, behavior)
     end
   end
 end
@@ -78,7 +103,7 @@ end
 -- called when script loads
 function init()
   build_midi_device_list()
-  launchpad = Launchpad:create(4)
+  launchpad = Launchpad:create(4, handle_midi_event)
 end
 
 -- encoder callback
