@@ -79,8 +79,39 @@ function Launchpad:create(midi_index)
   return _lp
 end
 
+function Launchpad:transform_midi_event(data, cb)
+  local message = midi.to_msg(data)
+  
+  local event
+  if message.type == "note_on" or message.type == "note_off" then
+    local event_type = message.type == "note_on" and "pressed" or "released"
+
+    local grid_x
+    local grid_y
+    for y = 2, 9, 1 do
+      for x = 1, 8, 1 do
+        if self.grid_notes[y][x] == message.note then
+          grid_x = x
+          grid_y = y-1
+        end
+      end
+    end
+
+    event = {
+      type = event_type,
+      x = grid_x,
+      y = grid_y,
+    }
+  end
+
+  return event
+end
+
 function Launchpad:set_event_callback(cb)
-  self.midi_connection.event = cb
+  self.midi_connection.event = function(data)
+    local event = self:transform_midi_event(data, cb)
+    return cb(event)
+  end
 end
 
 function Launchpad:set_grid_rotation(r)
@@ -91,15 +122,6 @@ function Launchpad:set_grid_rotation(r)
     rotated = rotate_grid(rotated)
   end
   self.grid_notes = merge_grid(grid_notes, rotated)
-
-  for i=1,9,1 do
-    local str = ""
-    for j=1,9,1 do
-      local num = self.grid_notes[i][j]
-      str = str.." "..num
-    end
-    print(str)
-  end
 end
 
 function Launchpad:programmer_mode()
@@ -129,13 +151,12 @@ function Launchpad:coord_pad_off(x, y)
 end
 
 function Launchpad:grid_pad_on(x, y, _color, _behavior)
-  print("x: "..(x+1).." y: "..(y+2))
-  local note = self.grid_notes[y+2][x+1]
+  local note = self.grid_notes[y+1][x]
   self:note_pad_on(note, _color, _behavior)
 end
 
 function Launchpad:grid_pad_off(x, y)
-  local note = self.grid_notes[y+2][x+1]
+  local note = self.grid_notes[y+1][x]
   self:note_pad_off(note)
 end
 
@@ -167,53 +188,49 @@ end
 
 midi_devices = {}
 
-launchpad = nil
+launchpad1 = nil
 launchpad2 = nil
 
-function handle_midi_event(data)
-  local message = midi.to_msg(data)
+function handle_event(event, lp_index)
+  if not event then return end
 
-  if message.type == "note_on" then
-    launchpad:note_pad_on(message.note)
-    launchpad2:note_pad_on(message.note)
-  elseif message.type == "note_off" then
-    launchpad:note_pad_off(message.note)
-    launchpad2:note_pad_off(message.note)
-  elseif message.type == "cc" then
-    if message.val == 127 then
-      launchpad:note_pad_on(message.cc)
-      launchpad2:note_pad_on(message.cc)
-    elseif message.val == 0 then
-      launchpad:note_pad_off(message.cc)
-      launchpad2:note_pad_off(message.cc)
-    end
+  local main_lp = lp_index == 1 and launchpad1 or launchpad2
+  local mirr_lp = lp_index == 2 and launchpad1 or launchpad2
+
+  if event.type == "pressed" then
+    main_lp:grid_pad_on(event.x, event.y)
+    mirr_lp:grid_pad_on(event.x, event.y, 37)
+  elseif event.type == "released" then
+    main_lp:grid_pad_off(event.x, event.y)
+    mirr_lp:grid_pad_off(event.x, event.y)
   end
 end
 
 -- called when script loads
 function init()
   build_midi_device_list()
-  launchpad = Launchpad:create(3)
+  launchpad1 = Launchpad:create(3)
   launchpad2 = Launchpad:create(4)
+  launchpad1:all_pads_off()
+  launchpad2:all_pads_off()
 
-  launchpad:set_grid_rotation(3)
-  print(" ")
+  launchpad1:set_grid_rotation(3)
   launchpad2:set_grid_rotation(0)
 
-  launchpad:set_event_callback(handle_midi_event)
-  launchpad2:set_event_callback(handle_midi_event)
+  launchpad1:set_event_callback(function (event) handle_event(event, 1) end)
+  launchpad2:set_event_callback(function (event) handle_event(event, 2) end)
 
-  clock.run(light)
+  clock.run(test)
 end
 
-function light()
-  for y = 0, 7, 1 do
-    for x = 0, 7, 1 do
-      launchpad:grid_pad_on(x,y)
-      launchpad2:grid_pad_on(x,y)
-      clock.sleep(0.05)
-      launchpad:grid_pad_off(x,y)
-      launchpad2:grid_pad_off(x,y)
+function test()
+  for y = 1, 8, 1 do
+    for x = 1, 16, 1 do
+      local lp = x < 9 and launchpad1 or launchpad2
+      local mapped_x = x <9 and x or x - 8
+      lp:grid_pad_on(mapped_x, y)
+      clock.sleep(0.01)
+      lp:grid_pad_off(mapped_x, y)
     end
   end
 end
@@ -226,10 +243,10 @@ end
 function key(n,z)
   if z then
     if n == 2 then
-      launchpad:disco()
+      launchpad1:disco()
       launchpad2:disco()
     elseif n == 3 then
-      launchpad:all_pads_off()
+      launchpad1:all_pads_off()
       launchpad2:all_pads_off()
     end
   end
@@ -247,7 +264,6 @@ function build_midi_device_list()
   midi_devices = {}
   for i = 1, #midi.vports do
     local long_name = midi.vports[i].name
-    print(long_name)
     local short_name = string.len(long_name) > 15 and util.acronym(long_name) or long_name
     table.insert(midi_devices, short_name)
   end
