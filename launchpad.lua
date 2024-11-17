@@ -3,23 +3,6 @@
 Launchpad = {}
 Launchpad.__index = Launchpad
 
-function rotate_grid(orig)
-  local n = 8
-  local ret = {}
-
-  for i = 1, n, 1 do
-    ret[i] = {}
-  end
-
-  for i = 1, n, 1 do
-    for j = 1, n, 1 do
-      ret[i][j] = orig[n - j + 1][i]
-    end
-  end
-
-  return ret
-end
-
 special = {
   UP = 91,
   DOWN = 92,
@@ -73,6 +56,23 @@ inner_grid = {
   {11, 12, 13, 14, 15, 16, 17, 18}
 }
 
+function rotate_grid(orig)
+  local n = 8
+  local ret = {}
+
+  for i = 1, n, 1 do
+    ret[i] = {}
+  end
+
+  for i = 1, n, 1 do
+    for j = 1, n, 1 do
+      ret[i][j] = orig[n - j + 1][i]
+    end
+  end
+
+  return ret
+end
+
 function merge_grid(full, grid)
   local ret = {}
 
@@ -99,7 +99,10 @@ function Launchpad:create(midi_index)
   setmetatable(_lp, Launchpad)
 
   -- stash internal data
+  -- grid that rotation is applied to
   _lp.grid_notes = merge_grid(grid_notes, inner_grid)
+  -- unrotated grid
+  _lp.orig_notes = merge_grid(grid_notes, inner_grid)
 
   -- init
   _lp.midi_connection = midi.connect(midi_index)
@@ -109,16 +112,22 @@ function Launchpad:create(midi_index)
   return _lp
 end
 
+-- take a MIDI message and transform it into something
+-- with more semantic meaning
 function Launchpad:transform_midi_event(data, cb)
   local message = midi.to_msg(data)
-  -- tab.print(message)
+
+  local event = {
+    type = "other",
+    midi = message
+  }
   
-  local event
   if message.type == "note_on" or message.type == "note_off" then
     local event_type = (message.type == "note_on" and message.vel > 0)
       and "grid_pressed"
       or "grid_released"
 
+    -- handle grid rotation
     local grid_x
     local grid_y
     for y = 2, 9, 1 do
@@ -134,7 +143,6 @@ function Launchpad:transform_midi_event(data, cb)
       type = event_type,
       x = grid_x,
       y = grid_y,
-      midi = message
     }
   elseif (message.type == "cc") then
     local event_type = message.val > 0
@@ -152,12 +160,6 @@ function Launchpad:transform_midi_event(data, cb)
       type = event_type,
       control = control_name,
       note = message.cc,
-      midi = message
-    }
-  else
-    event = {
-      type = "other",
-      midi = message
     }
   end
 
@@ -200,12 +202,12 @@ end
 -- color is the number associated with the color in the manual
 -- behavior is static (1), flashing (2), and pulsing (2)
 function Launchpad:coord_pad_on(x, y, _color, _behavior)
-  local note = self.grid_notes[y+1][x+1]
+  local note = self.orig_notes[y][x]
   self:note_pad_on(note, _color, _behavior)
 end
 
 function Launchpad:coord_pad_off(x, y)
-  local note = self.grid_notes[y+1][x+1]
+  local note = self.orig_notes[y][x]
   self:note_pad_off(note)
 end
 
@@ -220,16 +222,16 @@ function Launchpad:grid_pad_off(x, y)
 end
 
 function Launchpad:all_pads_off()
-  for i = 0, 8, 1 do
-    for j = 0, 8, 1 do
+  for i = 1, 9, 1 do
+    for j = 1, 9, 1 do
       self:coord_pad_off(i, j)
     end
   end
 end
 
 function Launchpad:disco()
-  for i = 0, 8, 1 do
-    for j = 0, 8, 1 do
+  for i = 1, 9, 1 do
+    for j = 1, 9, 1 do
       local color = math.random(0, 127)
       local behavior = math.random(3)
       self:coord_pad_on(i, j, color, behavior)
@@ -289,13 +291,25 @@ function init()
 end
 
 function test()
+  -- rotated, grid only
   for y = 1, 8, 1 do
     for x = 1, 16, 1 do
       local lp = x < 9 and launchpad1 or launchpad2
-      local mapped_x = x <9 and x or x - 8
+      local mapped_x = x < 9 and x or x - 8
       lp:grid_pad_on(mapped_x, y)
-      clock.sleep(0.01)
+      clock.sleep(0.03)
       lp:grid_pad_off(mapped_x, y)
+    end
+  end
+
+  -- unrotated, full
+  for y = 1, 9, 1 do
+    for x = 1, 18, 1 do
+      local lp = x < 10 and launchpad1 or launchpad2
+      local mapped_x = x < 10 and x or x - 9
+      lp:coord_pad_on(mapped_x, y)
+      clock.sleep(0.03)
+      lp:coord_pad_off(mapped_x, y)
     end
   end
 end
