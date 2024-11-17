@@ -20,16 +20,46 @@ function rotate_grid(orig)
   return ret
 end
 
+special = {
+  UP = 91,
+  DOWN = 92,
+  LEFT = 93,
+  RIGHT = 94,
+  SESSION = 95,
+  DRUMS = 96,
+  KEYS = 97,
+  USER = 98,
+  LOGO = 99,
+  ROW_1 = 89,
+  ROW_2 = 79,
+  ROW_3 = 69,
+  ROW_4 = 59,
+  ROW_5 = 49,
+  ROW_6 = 39,
+  ROW_7 = 29,
+  ROW_8 = 19,
+}
+
 grid_notes = {
-  {91, 92, 93, 94, 95, 96, 97, 98, 99},
-  {0, 0, 0, 0, 0, 0, 0, 0, 89},
-  {0, 0, 0, 0, 0, 0, 0, 0, 79},
-  {0, 0, 0, 0, 0, 0, 0, 0, 69},
-  {0, 0, 0, 0, 0, 0, 0, 0, 59},
-  {0, 0, 0, 0, 0, 0, 0, 0, 49},
-  {0, 0, 0, 0, 0, 0, 0, 0, 39},
-  {0, 0, 0, 0, 0, 0, 0, 0, 29},
-  {0, 0, 0, 0, 0, 0, 0, 0, 19}
+  {
+    special.UP,
+    special.DOWN,
+    special.LEFT,
+    special.RIGHT,
+    special.SESSION,
+    special.DRUMS,
+    special.KEYS,
+    special.USER,
+    special.LOGO
+  },
+  {0, 0, 0, 0, 0, 0, 0, 0, special.ROW_1},
+  {0, 0, 0, 0, 0, 0, 0, 0, special.ROW_2},
+  {0, 0, 0, 0, 0, 0, 0, 0, special.ROW_3},
+  {0, 0, 0, 0, 0, 0, 0, 0, special.ROW_4},
+  {0, 0, 0, 0, 0, 0, 0, 0, special.ROW_5},
+  {0, 0, 0, 0, 0, 0, 0, 0, special.ROW_6},
+  {0, 0, 0, 0, 0, 0, 0, 0, special.ROW_7},
+  {0, 0, 0, 0, 0, 0, 0, 0, special.ROW_8}
 }
 
 inner_grid = {
@@ -81,10 +111,13 @@ end
 
 function Launchpad:transform_midi_event(data, cb)
   local message = midi.to_msg(data)
+  -- tab.print(message)
   
   local event
   if message.type == "note_on" or message.type == "note_off" then
-    local event_type = message.type == "note_on" and "pressed" or "released"
+    local event_type = (message.type == "note_on" and message.vel > 0)
+      and "grid_pressed"
+      or "grid_released"
 
     local grid_x
     local grid_y
@@ -101,8 +134,34 @@ function Launchpad:transform_midi_event(data, cb)
       type = event_type,
       x = grid_x,
       y = grid_y,
+      midi = message
+    }
+  elseif (message.type == "cc") then
+    local event_type = message.val > 0
+      and "control_pressed"
+      or "control_released"
+
+    local control_name
+    for k,v in pairs(special) do
+      if (v == message.cc) then
+        control_name = k
+      end
+    end
+
+    event = {
+      type = event_type,
+      control = control_name,
+      note = message.cc,
+      midi = message
+    }
+  else
+    event = {
+      type = "other",
+      midi = message
     }
   end
+
+  tab.print(event)
 
   return event
 end
@@ -197,12 +256,18 @@ function handle_event(event, lp_index)
   local main_lp = lp_index == 1 and launchpad1 or launchpad2
   local mirr_lp = lp_index == 2 and launchpad1 or launchpad2
 
-  if event.type == "pressed" then
+  if event.type == "grid_pressed" then
     main_lp:grid_pad_on(event.x, event.y)
     mirr_lp:grid_pad_on(event.x, event.y, 37)
-  elseif event.type == "released" then
+  elseif event.type == "grid_released" then
     main_lp:grid_pad_off(event.x, event.y)
     mirr_lp:grid_pad_off(event.x, event.y)
+  elseif event.type == "control_pressed" then
+    main_lp:note_pad_on(event.note)
+    mirr_lp:note_pad_on(event.note, 37)
+  elseif event.type == "control_released" then
+    main_lp:note_pad_off(event.note)
+    mirr_lp:note_pad_off(event.note, 37)
   end
 end
 
