@@ -1,8 +1,8 @@
 -- Launchpad test script
 -- for two mini mk3s
 
-local Launchpad = include('launchpad/lib/launchpad')
-local getMiniMK3Config = include('launchpad/config/launchpad-mini-mk3')
+local Launchpad = include('launchpad-test/lib/launchpad')
+local getMiniMK3Config = include('launchpad-test/lib/config/launchpad-mini-mk3')
 
 launchpad1 = nil
 launchpad2 = nil
