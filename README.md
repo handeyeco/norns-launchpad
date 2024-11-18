@@ -5,7 +5,7 @@
 
 Chances are if you found this repo, you were actually looking for midigrid (either [miker2049's](https://github.com/miker2049/midigrid) or [jaggednz's](https://github.com/jaggednz/midigrid)).
 
-This is a lib for controlling Launchpads from [Norns](https://monome.org/docs/norns/).
+This is a lib for controlling Launchpads from [Norns](https://monome.org/docs/norns/). It's not a fun Norns script on its own, it's meant to be used by fun Norns scripts.
 
 Why? 🤷‍♂️ I wanted more color.
 
