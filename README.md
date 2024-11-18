@@ -55,7 +55,7 @@ The tables also include a `midi` table which is the original MIDI message receiv
 
 ### Launchpad:set_grid_rotation(r)
 
-Rotates the 8x8 grid (not the controls). Useful for putting multiple Launchpads next to one another to make a larger grid. `r` should 0 (none), 1, 2, or 3.
+Rotates the 8x8 grid (not the controls). Useful for putting multiple Launchpads next to one another to make a larger grid. `r` should be 0 (none), 1, 2, or 3.
 
 ``` Lua
 -- 270 degree rotation
