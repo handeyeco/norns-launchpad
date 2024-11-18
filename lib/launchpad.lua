@@ -1,7 +1,7 @@
 Launchpad = {}
 Launchpad.__index = Launchpad
 
-function rotate_grid(orig)
+function Launchpad:rotate_grid(orig)
   local n = 8
   local ret = {}
 
@@ -18,7 +18,7 @@ function rotate_grid(orig)
   return ret
 end
 
-function merge_grid(full, grid)
+function Launchpad:merge_grid(full, grid)
   local ret = {}
 
   -- copy original
@@ -45,9 +45,9 @@ function Launchpad:create(midi_index, config)
 
   -- stash internal data
   -- grid that rotation is applied to
-  _lp.grid_notes = merge_grid(config.grid_notes, config.inner_grid)
+  _lp.grid_notes = Launchpad:merge_grid(config.grid_notes, config.inner_grid)
   -- unrotated grid
-  _lp.orig_notes = merge_grid(config.grid_notes, config.inner_grid)
+  _lp.orig_notes = Launchpad:merge_grid(config.grid_notes, config.inner_grid)
 
   _lp.orig_inner_grid = config.inner_grid
   _lp.control = config.control
@@ -130,9 +130,9 @@ function Launchpad:set_grid_rotation(r)
   self.grid_rotation = rot
   local rotated = self.orig_inner_grid
   for i=1, rot, 1 do
-    rotated = rotate_grid(rotated)
+    rotated = Launchpad:rotate_grid(rotated)
   end
-  self.grid_notes = merge_grid(self.orig_notes, rotated)
+  self.grid_notes = Launchpad:merge_grid(self.orig_notes, rotated)
 end
 
 function Launchpad:note_pad_on(note, _color, _behavior)
