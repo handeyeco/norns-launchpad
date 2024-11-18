@@ -3,58 +3,66 @@
 Launchpad = {}
 Launchpad.__index = Launchpad
 
-special = {
-  UP = 91,
-  DOWN = 92,
-  LEFT = 93,
-  RIGHT = 94,
-  SESSION = 95,
-  DRUMS = 96,
-  KEYS = 97,
-  USER = 98,
-  LOGO = 99,
-  ROW_1 = 89,
-  ROW_2 = 79,
-  ROW_3 = 69,
-  ROW_4 = 59,
-  ROW_5 = 49,
-  ROW_6 = 39,
-  ROW_7 = 29,
-  ROW_8 = 19,
-}
+function getMiniMK3Config()
+  local control = {
+    UP = 91,
+    DOWN = 92,
+    LEFT = 93,
+    RIGHT = 94,
+    SESSION = 95,
+    DRUMS = 96,
+    KEYS = 97,
+    USER = 98,
+    LOGO = 99,
+    ROW_1 = 89,
+    ROW_2 = 79,
+    ROW_3 = 69,
+    ROW_4 = 59,
+    ROW_5 = 49,
+    ROW_6 = 39,
+    ROW_7 = 29,
+    ROW_8 = 19,
+  }
 
-grid_notes = {
-  {
-    special.UP,
-    special.DOWN,
-    special.LEFT,
-    special.RIGHT,
-    special.SESSION,
-    special.DRUMS,
-    special.KEYS,
-    special.USER,
-    special.LOGO
-  },
-  {0, 0, 0, 0, 0, 0, 0, 0, special.ROW_1},
-  {0, 0, 0, 0, 0, 0, 0, 0, special.ROW_2},
-  {0, 0, 0, 0, 0, 0, 0, 0, special.ROW_3},
-  {0, 0, 0, 0, 0, 0, 0, 0, special.ROW_4},
-  {0, 0, 0, 0, 0, 0, 0, 0, special.ROW_5},
-  {0, 0, 0, 0, 0, 0, 0, 0, special.ROW_6},
-  {0, 0, 0, 0, 0, 0, 0, 0, special.ROW_7},
-  {0, 0, 0, 0, 0, 0, 0, 0, special.ROW_8}
-}
+  local grid_notes = {
+    {
+      control.UP,
+      control.DOWN,
+      control.LEFT,
+      control.RIGHT,
+      control.SESSION,
+      control.DRUMS,
+      control.KEYS,
+      control.USER,
+      control.LOGO
+    },
+    {0, 0, 0, 0, 0, 0, 0, 0, control.ROW_1},
+    {0, 0, 0, 0, 0, 0, 0, 0, control.ROW_2},
+    {0, 0, 0, 0, 0, 0, 0, 0, control.ROW_3},
+    {0, 0, 0, 0, 0, 0, 0, 0, control.ROW_4},
+    {0, 0, 0, 0, 0, 0, 0, 0, control.ROW_5},
+    {0, 0, 0, 0, 0, 0, 0, 0, control.ROW_6},
+    {0, 0, 0, 0, 0, 0, 0, 0, control.ROW_7},
+    {0, 0, 0, 0, 0, 0, 0, 0, control.ROW_8}
+  }
 
-inner_grid = {
-  {81, 82, 83, 84, 85, 86, 87, 88},
-  {71, 72, 73, 74, 75, 76, 77, 78},
-  {61, 62, 63, 64, 65, 66, 67, 68},
-  {51, 52, 53, 54, 55, 56, 57, 58},
-  {41, 42, 43, 44, 45, 46, 47, 48},
-  {31, 32, 33, 34, 35, 36, 37, 38},
-  {21, 22, 23, 24, 25, 26, 27, 28},
-  {11, 12, 13, 14, 15, 16, 17, 18}
-}
+  local inner_grid = {
+    {81, 82, 83, 84, 85, 86, 87, 88},
+    {71, 72, 73, 74, 75, 76, 77, 78},
+    {61, 62, 63, 64, 65, 66, 67, 68},
+    {51, 52, 53, 54, 55, 56, 57, 58},
+    {41, 42, 43, 44, 45, 46, 47, 48},
+    {31, 32, 33, 34, 35, 36, 37, 38},
+    {21, 22, 23, 24, 25, 26, 27, 28},
+    {11, 12, 13, 14, 15, 16, 17, 18}
+  }
+
+  return {
+    control = control,
+    grid_notes = grid_notes,
+    inner_grid = inner_grid
+  }
+end
 
 function rotate_grid(orig)
   local n = 8
@@ -94,27 +102,34 @@ function merge_grid(full, grid)
   return ret
 end
 
-function Launchpad:create(midi_index)
+function Launchpad:create(midi_index, config)
   local _lp = {}
   setmetatable(_lp, Launchpad)
 
   -- stash internal data
   -- grid that rotation is applied to
-  _lp.grid_notes = merge_grid(grid_notes, inner_grid)
+  _lp.grid_notes = merge_grid(config.grid_notes, config.inner_grid)
   -- unrotated grid
-  _lp.orig_notes = merge_grid(grid_notes, inner_grid)
+  _lp.orig_notes = merge_grid(config.grid_notes, config.inner_grid)
+
+  _lp.orig_inner_grid = config.inner_grid
+  _lp.control = config.control
 
   -- init
   _lp.midi_connection = midi.connect(midi_index)
   _lp.grid_rotation = 0
-  _lp:programmer_mode()
+  _lp:_programmer_mode()
 
   return _lp
 end
 
+function Launchpad:_programmer_mode()
+  self:send{240, 0, 32, 41, 2, 13, 14, 1, 247}
+end
+
 -- take a MIDI message and transform it into something
 -- with more semantic meaning
-function Launchpad:transform_midi_event(data, cb)
+function Launchpad:_transform_midi_event(data, cb)
   local message = midi.to_msg(data)
 
   local event = {
@@ -150,7 +165,7 @@ function Launchpad:transform_midi_event(data, cb)
       or "control_released"
 
     local control_name
-    for k,v in pairs(special) do
+    for k,v in pairs(self.control) do
       if (v == message.cc) then
         control_name = k
       end
@@ -170,7 +185,7 @@ end
 
 function Launchpad:set_event_callback(cb)
   self.midi_connection.event = function(data)
-    local event = self:transform_midi_event(data, cb)
+    local event = self:_transform_midi_event(data, cb)
     return cb(event)
   end
 end
@@ -178,15 +193,11 @@ end
 function Launchpad:set_grid_rotation(r)
   local rot = (r or 0) % 4
   self.grid_rotation = rot
-  local rotated = inner_grid
+  local rotated = self.orig_inner_grid
   for i=1, rot, 1 do
     rotated = rotate_grid(rotated)
   end
-  self.grid_notes = merge_grid(grid_notes, rotated)
-end
-
-function Launchpad:programmer_mode()
-  self:send{240, 0, 32, 41, 2, 13, 14, 1, 247}
+  self.grid_notes = merge_grid(self.orig_notes, rotated)
 end
 
 function Launchpad:note_pad_on(note, _color, _behavior)
@@ -218,6 +229,26 @@ end
 
 function Launchpad:grid_pad_off(x, y)
   local note = self.grid_notes[y+1][x]
+  self:note_pad_off(note)
+end
+
+function Launchpad:control_pad_on(name, _color, _behavior)
+  local note
+  for k,v in pairs(self.control) do
+    if k == name then
+      note = v
+    end
+  end
+  self:note_pad_on(note, _color, _behavior)
+end
+
+function Launchpad:control_pad_off(name)
+  local note
+  for k,v in pairs(self.control) do
+    if k == name then
+      note = v
+    end
+  end
   self:note_pad_off(note)
 end
 
@@ -276,8 +307,8 @@ end
 -- called when script loads
 function init()
   build_midi_device_list()
-  launchpad1 = Launchpad:create(3)
-  launchpad2 = Launchpad:create(4)
+  launchpad1 = Launchpad:create(3, getMiniMK3Config())
+  launchpad2 = Launchpad:create(4, getMiniMK3Config())
   launchpad1:all_pads_off()
   launchpad2:all_pads_off()
 
@@ -291,6 +322,29 @@ function init()
 end
 
 function test()
+  launchpad1:control_pad_on("LOGO", 33, 3)
+  launchpad2:control_pad_on("LOGO", 33, 3)
+
+  launchpad1:control_pad_on("UP")
+  launchpad1:control_pad_on("DOWN")
+  launchpad1:control_pad_on("LEFT")
+  launchpad1:control_pad_on("RIGHT")
+  launchpad2:control_pad_on("UP")
+  launchpad2:control_pad_on("DOWN")
+  launchpad2:control_pad_on("LEFT")
+  launchpad2:control_pad_on("RIGHT")
+
+  clock.sleep(1)
+
+  launchpad1:control_pad_off("UP")
+  launchpad1:control_pad_off("DOWN")
+  launchpad1:control_pad_off("LEFT")
+  launchpad1:control_pad_off("RIGHT")
+  launchpad2:control_pad_off("UP")
+  launchpad2:control_pad_off("DOWN")
+  launchpad2:control_pad_off("LEFT")
+  launchpad2:control_pad_off("RIGHT")
+
   -- rotated, grid only
   for y = 1, 8, 1 do
     for x = 1, 16, 1 do
