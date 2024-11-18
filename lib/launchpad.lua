@@ -1,6 +1,44 @@
 Launchpad = {}
 Launchpad.__index = Launchpad
 
+function rotate_grid(orig)
+  local n = 8
+  local ret = {}
+
+  for i = 1, n, 1 do
+    ret[i] = {}
+  end
+
+  for i = 1, n, 1 do
+    for j = 1, n, 1 do
+      ret[i][j] = orig[n - j + 1][i]
+    end
+  end
+
+  return ret
+end
+
+function merge_grid(full, grid)
+  local ret = {}
+
+  -- copy original
+  for i = 1, 9, 1 do
+    ret[i] = {}
+    for j = 1, 9, 1 do
+      ret[i][j] = full[i][j]
+    end
+  end
+
+  -- merge
+  for i = 1, 8, 1 do
+    for j = 1, 8, 1 do
+      ret[i+1][j] = grid[i][j]
+    end
+  end
+
+  return ret
+end
+
 function Launchpad:create(midi_index, config)
   local _lp = {}
   setmetatable(_lp, Launchpad)
