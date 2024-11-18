@@ -7,7 +7,7 @@ Chances are if you found this repo, you were actually looking for midigrid (eith
 
 This is a lib for controlling Launchpads from [Norns](https://monome.org/docs/norns/).
 
-Why? 🤷‍♂️
+Why? 🤷‍♂️ I wanted more color.
 
 ## API
 
